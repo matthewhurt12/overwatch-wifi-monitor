@@ -59,14 +59,6 @@ Reports are written to `reports/` and are intentionally ignored by Git because t
 - `OVERWATCH_REPORT_DIR` - daily report output directory
 - `OVERWATCH_REPORT_FULL_MAC=1` - disable MAC redaction in local reports
 
-## Operating Rules
-
-- Keep this passive. Do not add deauth, cracking, credential capture, packet payload capture, or anything that interferes with other networks.
-- Prefer trends and summaries over raw dumps.
-- Label known/familiar devices when Matthew confirms them.
-- Treat raw MACs, probe requests, event logs, and reports as private local data.
-- If the scanner looks quiet, check CSV age first, then service status, then adapter monitor mode.
-
 ## Matthew-Facing Summary Shape
 
 When reporting to Matthew, keep it action-oriented:
