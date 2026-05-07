@@ -4,6 +4,8 @@ import json
 import os
 import time
 
+from overwatch_config import OUTPUT_FILE
+
 app = FastAPI()
 
 app.add_middleware(
@@ -13,7 +15,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DEVICES_FILE = "/home/matthew/camera-dashboard/devices.json"
+DEVICES_FILE = OUTPUT_FILE
 
 
 def load_devices():

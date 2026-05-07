@@ -13,18 +13,14 @@ import sqlite3
 import subprocess
 import time
 from collections import deque
-from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-BASE_DIR = Path(__file__).resolve().parent
-
-CSV_FILE = "/home/matthew/scan-01.csv"
-REGISTRY_DB = str(BASE_DIR / "device_registry.db")
-STREAM_FILE = str(BASE_DIR / "stream.m3u8")
+from overwatch_config import BASE_DIR, CSV_FILE, EVENT_RETENTION_DAYS, REGISTRY_DB, STREAM_FILE
+from overwatch_daily import build_daily_summary
 
 app = FastAPI(title="OVERWATCH v4")
 
@@ -55,6 +51,9 @@ ws_clients: set[WebSocket] = set()
 # ═══════════════════════════════════════════════════════════════
 
 def init_db():
+    db_dir = os.path.dirname(REGISTRY_DB)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
     conn = sqlite3.connect(REGISTRY_DB, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
@@ -124,7 +123,7 @@ def db_log_event(etype, mac="", detail=""):
     try:
         db.execute("INSERT INTO events (ts,type,mac,detail) VALUES (?,?,?,?)",
                    (time.time(), etype, mac, detail))
-        db.execute("DELETE FROM events WHERE ts < ?", (time.time() - 86400 * 7,))
+        db.execute("DELETE FROM events WHERE ts < ?", (time.time() - 86400 * EVENT_RETENTION_DAYS,))
         db.commit()
     except Exception:
         pass
@@ -686,6 +685,11 @@ async def get_device_timeline(mac: str, hours: float = Query(default=24)):
                        "best_signal": dev_row[9], "last_essid": dev_row[10],
                        "all_probes": dev_row[11].split(",") if dev_row[11] else []}
     return JSONResponse({"events": rows, "count": len(rows), "device": device_info})
+
+
+@app.get("/api/daily-summary")
+async def get_daily_summary(hours: float = Query(default=24)):
+    return JSONResponse(build_daily_summary(db_path=REGISTRY_DB, hours=hours))
 
 
 # ═══════════════════════════════════════════════════════════════

@@ -10,6 +10,7 @@ device_registry.db*
 
 # Live data
 devices.json
+reports/
 
 # Stream files
 *.ts

@@ -7,10 +7,7 @@ import sqlite3
 import subprocess
 import socket
 
-CSV_FILE = "/home/matthew/scan-01.csv"
-OUTPUT_FILE = "/home/matthew/camera-dashboard/devices.json"
-REGISTRY_DB = "/home/matthew/camera-dashboard/device_registry.db"
-STREAM_FILE = "/home/matthew/camera-dashboard/stream.m3u8"
+from overwatch_config import CSV_FILE, EVENT_RETENTION_DAYS, OUTPUT_FILE, REGISTRY_DB, STREAM_FILE
 
 devices = {}
 networks = {}
@@ -24,6 +21,9 @@ prev_device_set = set()
 # ═══ LIGHTWEIGHT DATABASE ═══
 
 def init_db():
+    db_dir = os.path.dirname(REGISTRY_DB)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
     conn = sqlite3.connect(REGISTRY_DB, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
@@ -53,7 +53,14 @@ def init_db():
     conn.commit()
     return conn
 
-db = init_db()
+db = None
+
+
+def get_db():
+    global db
+    if db is None:
+        db = init_db()
+    return db
 
 known_active = set()
 _db_cache = {"stats": None, "stats_ts": 0, "history": None, "history_ts": 0}
@@ -61,7 +68,8 @@ _db_cache = {"stats": None, "stats_ts": 0, "history": None, "history_ts": 0}
 
 def db_remember(dev_list):
     now = time.time()
-    cur = db.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     currently_here = set()
     for d in dev_list:
         mac = d["mac"]
@@ -89,7 +97,7 @@ def db_remember(dev_list):
                 VALUES (?,?,?,?,?,1,0,?,?,?)""",
                 (mac, d.get("vendor",""), d.get("type","unknown"), now, now,
                  sig, d.get("essid",""), probes))
-    db.commit()
+    conn.commit()
     known_active.clear()
     known_active.update(currently_here)
 
@@ -99,10 +107,11 @@ def db_log_event(etype, mac="", detail=""):
     if len(events) > 200:
         events[:] = events[:200]
     try:
-        db.execute("INSERT INTO events (ts,type,mac,detail) VALUES (?,?,?,?)",
-                   (time.time(), etype, mac, detail))
-        db.execute("DELETE FROM events WHERE ts < ?", (time.time() - 86400 * 7,))
-        db.commit()
+        conn = get_db()
+        conn.execute("INSERT INTO events (ts,type,mac,detail) VALUES (?,?,?,?)",
+                     (time.time(), etype, mac, detail))
+        conn.execute("DELETE FROM events WHERE ts < ?", (time.time() - 86400 * EVENT_RETENTION_DAYS,))
+        conn.commit()
     except Exception:
         pass
 
@@ -111,7 +120,7 @@ def db_get_stats():
     now = time.time()
     if _db_cache["stats"] and now - _db_cache["stats_ts"] < 10:
         return _db_cache["stats"]
-    cur = db.cursor()
+    cur = get_db().cursor()
     day = now - 86400
     week = now - 604800
     cur.execute("SELECT COUNT(*) FROM known_devices")
@@ -133,7 +142,7 @@ def db_get_history():
     now = time.time()
     if _db_cache["history"] and now - _db_cache["history_ts"] < 30:
         return _db_cache["history"]
-    cur = db.cursor()
+    cur = get_db().cursor()
     day = now - 86400
 
     cur.execute("""SELECT vendor, COUNT(*) c FROM known_devices
@@ -162,15 +171,17 @@ def db_get_history():
 
 
 def db_set_alias(mac, alias):
-    db.execute("UPDATE known_devices SET alias=? WHERE mac=?", (alias, mac))
-    db.commit()
+    conn = get_db()
+    conn.execute("UPDATE known_devices SET alias=? WHERE mac=?", (alias, mac))
+    conn.commit()
 
 def db_set_tag(mac, tag):
-    db.execute("UPDATE known_devices SET tag=? WHERE mac=?", (tag, mac))
-    db.commit()
+    conn = get_db()
+    conn.execute("UPDATE known_devices SET tag=? WHERE mac=?", (tag, mac))
+    conn.commit()
 
 def db_get_device(mac):
-    cur = db.cursor()
+    cur = get_db().cursor()
     cur.execute("SELECT * FROM known_devices WHERE mac=?", (mac,))
     row = cur.fetchone()
     if not row: return None

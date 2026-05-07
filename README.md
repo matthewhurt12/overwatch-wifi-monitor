@@ -129,7 +129,43 @@ curl http://localhost:8001/devices | jq '.devices[] | select(.active==true)'
 
 # Recent events
 curl http://localhost:8001/api/timeline | jq '.events[:10]'
+
+# Daily summary JSON
+curl http://localhost:8001/api/daily-summary?hours=24 | jq
 ```
+
+## Frankie Daily Review
+
+For a daily AI-friendly review, run:
+
+```bash
+python3 overwatch_daily.py
+```
+
+This creates a private report in `reports/` with scanner health clues, event counts versus the previous window, close-signal alerts, packet bursts, new AP volume, top vendors, strongest devices, recurring devices, and next recommended checks.
+
+Reports redact MAC addresses by default and `reports/` is ignored by Git. Use `--full-mac` only for a private local review.
+
+Useful commands:
+
+```bash
+python3 overwatch_daily.py --hours 24 --json
+python3 overwatch_daily.py --hours 72
+python3 overwatch_daily.py --db /path/to/device_registry.db
+```
+
+## Configuration
+
+Runtime paths can be set with environment variables:
+
+```bash
+export OVERWATCH_CSV_FILE=/home/matthew/scan-01.csv
+export OVERWATCH_DB=/home/matthew/overwatch-wifi-monitor/device_registry.db
+export OVERWATCH_EVENT_RETENTION_DAYS=30
+export OVERWATCH_REPORT_DIR=/home/matthew/overwatch-wifi-monitor/reports
+```
+
+Dashboard API base is automatic when served from FastAPI. If opening `dashboard.html` directly from disk, set `ow_api_base` in browser localStorage or use the default Pi URL fallback.
 
 ## 💡 Use Cases
 

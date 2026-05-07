@@ -1,6 +1,11 @@
 "use strict";
 
-const API_BASE = 'http://192.168.0.111:8001';
+const API_BASE = (() => {
+  const saved = localStorage.getItem('ow_api_base');
+  if (saved) return saved.replace(/\/$/, '');
+  if (window.location.protocol.startsWith('http')) return window.location.origin;
+  return 'http://192.168.0.111:8001';
+})();
 
 /* ═══ STATE ═══ */
 const S = {
