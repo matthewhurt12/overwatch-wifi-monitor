@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OVERWATCH v3 — Network Intelligence Console</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+
+<!-- ═══ COMMAND BAR ═══ -->
+<div class="cmd-bar">
+  <div class="cmd-left">
+    <div class="cmd-logo"><div class="cmd-logo-icon"></div><div class="cmd-logo-text">Over<em>watch</em> <span style="color:var(--t4);font-weight:400;font-size:9px;margin-left:4px">v3</span></div></div>
+    <div class="cmd-sep"></div>
+    <div class="cmd-status" id="cmd-status"><div class="cmd-dot" id="cmd-dot"></div><span id="cmd-status-text">Monitoring</span></div>
+    <div class="conn-health" id="conn-health"></div>
+  </div>
+  <div class="cmd-right">
+    <span class="cmd-weather" id="cmd-weather"></span>
+    <span class="cmd-uptime" id="uptime">UP 00:00:00</span>
+    <span class="cmd-clock" id="clock">--:--:--</span>
+  </div>
+</div>
+
+<!-- ═══ MAIN WRAPPER ═══ -->
+<div class="main-wrapper">
+
+<!-- ═══ NAV RAIL ═══ -->
+<nav class="nav-rail">
+  <button class="nav-btn on" data-page="live" title="Live Monitor">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2a10 10 0 0 1 10 10"/><path d="M12 2a10 10 0 0 0-10 10"/><path d="M12 6a6 6 0 0 1 6 6"/><path d="M12 6a6 6 0 0 0-6 6"/></svg>
+    <span class="nav-tooltip">Live Monitor</span>
+  </button>
+  <button class="nav-btn" data-page="networks" title="RF Map">
+    <svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" class="nav-fill"/></svg>
+    <span class="nav-tooltip">RF Map</span>
+  </button>
+  <button class="nav-btn" data-page="map" title="Location">
+    <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+    <span class="nav-tooltip">Map</span>
+  </button>
+  <button class="nav-btn" data-page="analytics" title="Analytics">
+    <svg viewBox="0 0 24 24"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="7" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg>
+    <span class="nav-tooltip">Analytics</span>
+  </button>
+  <button class="nav-btn" data-page="alerts" title="Events">
+    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    <span class="nav-tooltip">Event Log</span>
+  </button>
+  <button class="nav-btn" data-page="timeline" title="Timeline">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="12 6 12 12 16 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <span class="nav-tooltip">Timeline</span>
+  </button>
+  <button class="nav-btn" data-page="local" title="Athens Local">
+    <svg viewBox="0 0 24 24"><path d="M3 3h7v7H3z"/><path d="M14 3h7v7h-7z"/><path d="M3 14h7v7H3z"/><circle cx="17.5" cy="17.5" r="3.5"/></svg>
+    <span class="nav-tooltip">Athens Local</span>
+  </button>
+  <div class="nav-spacer"></div>
+  <button class="nav-btn" data-page="settings" title="System">
+    <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    <span class="nav-tooltip">Pi System</span>
+  </button>
+</nav>
+
+<!-- ═══ CONTENT AREA ═══ -->
+<div class="content-col">
+
+<!-- ═══ PAGE: LIVE MONITOR ═══ -->
+<div class="page on" id="page-live">
+<div class="metric-strip">
+  <div class="metric"><span class="metric-label">Tracked</span><span class="metric-val v-cyan" id="m-total">0</span><div class="sparkline-box"><canvas id="sparkline" class="sparkline-canvas" width="80" height="20"></canvas><span class="metric-sub" id="m-total-sub">—</span></div></div>
+  <div class="metric"><span class="metric-label">Active</span><span class="metric-val v-green" id="m-active">0</span><span class="metric-sub" id="m-active-sub">—</span></div>
+  <div class="metric"><span class="metric-label">Networks</span><span class="metric-val v-purple" id="m-nets">0</span><span class="metric-sub">visible APs</span></div>
+  <div class="metric"><span class="metric-label">Close</span><span class="metric-val v-green" id="m-close">0</span><span class="metric-sub">RSSI &gt; -50</span></div>
+  <div class="metric"><span class="metric-label">Medium</span><span class="metric-val v-amber" id="m-med">0</span><span class="metric-sub">-50 to -70</span></div>
+  <div class="metric"><span class="metric-label">Far</span><span class="metric-val v-red" id="m-far">0</span><span class="metric-sub">RSSI &lt; -70</span></div>
+  <div class="metric"><span class="metric-label">Random MACs</span><span class="metric-val v-red" id="m-rand">0</span><span class="metric-sub">locally admin</span></div>
+  <div class="metric"><span class="metric-label">Familiar</span><span class="metric-val v-green" id="m-familiar">0</span><span class="metric-sub">resident + regular</span></div>
+  <div class="metric"><span class="metric-label">Unknown</span><span class="metric-val v-amber" id="m-unknown">0</span><span class="metric-sub">new + passing</span></div>
+  <div class="metric"><span class="metric-label">Threats</span><span class="metric-val v-red" id="m-threats">0</span><span class="metric-sub">high level</span></div>
+</div>
+<div class="workspace">
+  <!-- LEFT PANEL -->
+  <div class="panel" style="grid-column:1">
+    <div class="p-head">
+      <span class="p-title"><span class="p-title-dot" style="background:var(--red)"></span>Recon</span>
+      <span class="p-badge" id="cam-badge" style="background:var(--amber-10);color:var(--amber);border:1px solid rgba(255,167,38,.2)">INIT</span>
+    </div>
+    <div class="p-body">
+      <div class="cam-box"><div class="cam-frame"><video id="video" autoplay muted playsinline></video><div class="cam-hud"><div class="cam-rec"><div class="cam-rec-dot"></div>REC</div><div class="cam-time" id="cam-time">--:--:--</div></div></div></div>
+      <div class="section"><div class="section-head"><span class="section-label">Radar</span><span class="section-badge" id="radar-n">0</span></div>
+        <div class="radar-box"><div class="radar"><div class="radar-cross-h"></div><div class="radar-cross-v"></div><div class="radar-ring rr-3"></div><div class="radar-ring rr-2"></div><div class="radar-ring rr-1"></div><div class="radar-center"></div><div class="radar-sweep"></div><div id="radar-blips"></div></div>
+        <div class="radar-legend"><span><span class="rl-dot" style="background:var(--green)"></span>Close</span><span><span class="rl-dot" style="background:var(--amber)"></span>Med</span><span><span class="rl-dot" style="background:var(--red)"></span>Far</span></div></div>
+      </div>
+      <div class="section"><div class="section-head"><span class="section-label">Visible Networks</span><span class="section-badge" id="nets-n">0</span></div><div id="nets-list"></div></div>
+      <div class="section"><div class="section-head"><span class="section-label">System Status</span><span class="section-badge" id="sys-badge" style="color:var(--green)">OK</span></div>
+        <div class="sys-status"><div class="sys-row"><span class="sys-key">Data Age</span><span class="sys-val" id="sys-age">--</span></div><div class="sys-row"><span class="sys-key">Poll Latency</span><span class="sys-val" id="sys-latency">--</span></div><div class="sys-row"><span class="sys-key">Poll Count</span><span class="sys-val" id="sys-polls">0</span></div><div class="sys-row"><span class="sys-key">Fail Streak</span><span class="sys-val" id="sys-fails">0</span></div><div class="sys-row"><span class="sys-key">Camera</span><span class="sys-val" id="sys-cam">--</span></div><div class="sys-row"><span class="sys-key">Parser</span><span class="sys-val" id="sys-parser">--</span></div></div>
+      </div>
+    </div>
+  </div>
+  <!-- CENTER PANEL -->
+  <div class="panel col-center">
+    <div class="p-head"><span class="p-title"><span class="p-title-dot" style="background:var(--cyan)"></span>Device Registry</span><span class="p-badge" id="reg-badge" style="background:var(--cyan-10);color:var(--cyan);border:1px solid rgba(0,212,245,.2)">0</span></div>
+    <div class="toolbar">
+      <button class="tbtn on" data-f="all">All</button><button class="tbtn" data-f="active">Active</button><button class="tbtn" data-f="known">Known</button><button class="tbtn" data-f="unknown">Unknown</button><button class="tbtn" data-f="associated">Associated</button><button class="tbtn" data-f="probing">Probing</button><button class="tbtn" data-f="random">Random MAC</button><button class="tbtn" data-f="close">Close</button>
+      <div class="tool-right"><button class="tool-btn" id="btn-export" title="Export device data">CSV</button><button class="tool-btn" id="btn-sound" title="Toggle proximity alert sound">SND</button><input type="text" class="search-field" id="search" placeholder="MAC / vendor / ESSID…"></div>
+    </div>
+    <div class="tbl-head"><span></span><span>Identity</span><span>Type</span><span>Network</span><span>Signal</span><span>Distance</span><span>Pkts</span><span>Seen</span></div>
+    <div class="p-body"><div id="device-list"></div></div>
+  </div>
+  <!-- RIGHT PANEL -->
+  <div class="panel col-right">
+    <div class="p-head"><span class="p-title"><span class="p-title-dot" style="background:var(--amber)"></span>Intelligence</span></div>
+    <div class="sidebar-tabs">
+      <div class="sidebar-tab on" data-v="insights">Insights</div>
+      <div class="sidebar-tab" data-v="today">Today</div>
+      <div class="sidebar-tab" data-v="weather">Weather</div>
+      <div class="sidebar-tab" data-v="closest">Closest</div>
+      <div class="sidebar-tab" data-v="feed">Feed</div>
+      <div class="sidebar-tab" data-v="threats">Threats</div>
+    </div>
+    <div class="p-body">
+      <div class="sidebar-view on" id="view-insights">
+        <div class="section"><div class="section-head"><span class="section-label">Auto Insights</span><span class="section-badge" id="insight-n">0</span></div><div id="insights-list"></div></div>
+        <div class="section"><div class="section-head"><span class="section-label">Density</span><span class="section-badge" id="density-level" style="color:var(--green)">LOW</span></div><div class="density-box"><div class="density-track"><div class="density-fill" id="density-fill" style="width:10%;background:var(--green)"></div></div><div class="density-info"><span id="density-desc" style="color:var(--t4)">Quiet</span><span id="density-n" style="color:var(--t3)">0</span></div></div></div>
+        <div class="section"><div class="section-head"><span class="section-label">Device Breakdown</span></div><div id="type-breakdown" style="padding:8px var(--pad)"></div></div>
+        <div class="section"><div class="section-head"><span class="section-label">Quick Stats</span></div><div id="quick-stats" style="padding:8px var(--pad)"></div></div>
+      </div>
+      <div class="sidebar-view" id="view-today">
+        <div class="section"><div class="section-head"><span class="section-label">Today in Athens</span><span class="section-badge" id="today-day">--</span></div><div id="today-list"></div></div>
+      </div>
+      <div class="sidebar-view" id="view-weather"><div class="section"><div class="section-head"><span class="section-label">Athens, GA — Current</span><span class="section-badge" id="weather-updated">—</span></div><div id="weather-content"><div class="weather-loading">Loading weather data…</div></div></div></div>
+      <div class="sidebar-view" id="view-closest"><div id="top-list"></div></div>
+      <div class="sidebar-view" id="view-feed"><div id="feed"></div></div>
+      <div class="sidebar-view" id="view-threats"><div id="threats-list"></div></div>
+    </div>
+  </div>
+</div>
+</div><!-- /page-live -->
+
+<!-- ═══ PAGE: RF CHANNEL MAP ═══ -->
+<div class="page" id="page-networks"><div class="rf-page"><div class="rf-title">RF Channel Map</div><div class="rf-split" id="rf-split"></div><div class="rf-cards" id="rf-cards"></div></div></div>
+
+<!-- ═══ PAGE: MAP ═══ -->
+<div class="page" id="page-map"><div class="map-page"><div id="map-container" class="map-container"></div><div class="map-overlay"><div class="map-overlay-title">Monitoring Station</div><div class="map-stat"><span class="map-stat-key">Location</span><span class="map-stat-val">Athens, GA</span></div><div class="map-stat"><span class="map-stat-key">Coords</span><span class="map-stat-val">33.95°N 83.36°W</span></div><div class="map-stat"><span class="map-stat-key">Devices</span><span class="map-stat-val" id="map-dev-count">0</span></div><div class="map-stat"><span class="map-stat-key">APs</span><span class="map-stat-val" id="map-ap-count">0</span></div></div></div></div>
+
+<!-- ═══ PAGE: ANALYTICS ═══ -->
+<div class="page" id="page-analytics"><div class="analytics-page"><div class="an-title">Device Analytics</div><div class="an-cards" id="an-cards"></div></div></div>
+
+<!-- ═══ PAGE: EVENT LOG ═══ -->
+<div class="page" id="page-alerts"><div class="events-page"><div class="ev-title">Event Log</div><div class="ev-filters" id="ev-filters"><button class="tbtn on" data-ef="all">All</button><button class="tbtn" data-ef="device_join">Joined</button><button class="tbtn" data-ef="device_leave">Left</button><button class="tbtn" data-ef="close_alert">Close</button><button class="tbtn" data-ef="new_ap">New AP</button><button class="tbtn" data-ef="burst">Burst</button></div><div id="ev-list"></div></div></div>
+
+<!-- ═══ PAGE: TIMELINE ═══ -->
+<div class="page" id="page-timeline">
+  <div class="timeline-page">
+    <div class="tl-title">Device Timeline</div>
+    <div class="tl-controls">
+      <input type="text" class="search-field" id="tl-search" placeholder="Filter by MAC or alias...">
+      <select class="tl-select" id="tl-range">
+        <option value="1h">Last Hour</option>
+        <option value="6h">Last 6 Hours</option>
+        <option value="24" selected>Last 24 Hours</option>
+        <option value="7d">Last 7 Days</option>
+      </select>
+      <button class="tool-btn" onclick="fetchTimeline()">Refresh</button>
+    </div>
+    <div id="tl-content"><div style="padding:30px;text-align:center;color:var(--t4);font-size:11px">Select a time range and click Refresh</div></div>
+  </div>
+</div>
+
+<!-- ═══ PAGE: ATHENS LOCAL ═══ -->
+<div class="page" id="page-local">
+  <div class="local-page">
+    <div class="local-header">
+      <div class="local-icon">&#127861;</div>
+      <div><div class="local-title">Athens, GA — Local Intel</div><div class="local-subtitle">Food specials, markets, and events. Verify on venue Instagram before heading out.</div></div>
+    </div>
+    <div class="local-today" id="local-today-box"></div>
+    <div class="local-section-title">Bars &amp; Happy Hours</div>
+    <div class="local-cards" id="local-bars"></div>
+    <div class="local-section-title">Farmers Markets</div>
+    <div class="local-cards" id="local-markets"></div>
+    <div class="local-section-title">Weekly Events</div>
+    <div class="local-cards" id="local-events"></div>
+  </div>
+</div>
+
+<!-- ═══ PAGE: PI SYSTEM ═══ -->
+<div class="page" id="page-settings"><div class="pi-panel"><div class="pi-header"><div class="pi-visual"><div class="pi-chip"></div><div class="pi-gpio"><span></span><span></span><span></span><span></span><span></span></div></div><div><div class="pi-title" id="pi-hostname">Raspberry Pi</div><div class="pi-subtitle" id="pi-ip">Connecting...</div></div></div><div class="pi-grid" id="pi-grid"></div></div></div>
+
+</div><!-- /content-col -->
+</div><!-- /main-wrapper -->
+
+<script src="app.js"></script>
+</body>
+</html>

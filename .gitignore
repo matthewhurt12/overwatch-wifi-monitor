@@ -1,0 +1,45 @@
+# Scan data
+*.csv
+scan-*
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+device_registry.db*
+
+# Live data
+devices.json
+
+# Stream files
+*.ts
+*.m3u8
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+nohup.out
+
+# Backups
+*backup*
+*.bak
